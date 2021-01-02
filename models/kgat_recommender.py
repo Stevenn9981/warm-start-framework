@@ -82,7 +82,7 @@ class KGATRecommender(RecommenderBase):
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
 
-    def fit(self, training, validation, max_iterations=10, verbose=True, save_to='./'):
+    def fit(self, training, validation, max_iterations=1000, verbose=True, save_to='./'):
         user_ratings = convert_ratings(training)
         # Load KG triples if needed
         kg_triples, r_idx_map = load_kg_triples(self.split) if self.with_kg_triples else ([], {})
