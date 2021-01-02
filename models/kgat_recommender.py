@@ -73,8 +73,8 @@ class KGATRecommender(RecommenderBase):
         self.n_items = split.n_movies
         self.n_entities = split.n_movies + split.n_descriptive_entities
         self.n_users_entities = split.n_users + split.n_movies + split.n_descriptive_entities
-        self.cf_batch_size = 1024
-        self.kg_batch_size = 2048
+        self.cf_batch_size = 256
+        self.kg_batch_size = 1024
         self.if_train = True
         self.optimal_params = None
 
@@ -104,7 +104,7 @@ class KGATRecommender(RecommenderBase):
 
         logger.info(model)
 
-        optimizer = optim.Adam(model.parameters(), lr=0.0001)
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
         train_graph = self.train_graph
         if not self.if_train:
             test_graph = self.test_graph
@@ -199,21 +199,8 @@ class KGATRecommender(RecommenderBase):
             hits = 0
             count = 0
             model.eval()
-            # if (epoch % 2) == 0:
-            #     time1 = time()
-            #     for user, validation_tuple in random.sample(validation, min(len(validation), 50)):
-            #         count += 1
-            #         dict = self.predict(user, [validation_tuple[0]] + validation_tuple[1])
-            #         scores = sorted(dict.items(), key=lambda x: x[1], reverse=True)[:10]
-            #         if validation_tuple[0] in [item[0] for item in scores]:
-            #             hits += 1
-            #     logger.info(f'Hit Ratio@10 in Epoch {epoch}: {hits / count * 100:.2f}%')
-            #     logger.info(f'Evaluation time: {time() - time1:.2f}s')
-            #     hr_list.append(hits / count)
-            #     if early_stopping(hr_list, 5):
-            #         break
 
-            if (epoch % 1) == 0:
+            if (epoch % 2) == 0:
                 time1 = time()
                 user_ids = torch.LongTensor([user + self.n_entities for user, validation_tuple in validation])
                 item_ids = torch.arange(self.n_entities, dtype=torch.long)
@@ -235,7 +222,7 @@ class KGATRecommender(RecommenderBase):
                 logger.info(f'Hit Ratio@10 in Epoch {epoch}: {hits / count * 100:.2f}%')
                 logger.info(f'Evaluation time: {time() - time1:.2f}s')
                 hr_list.append(hits / count)
-                if early_stopping(hr_list, 10):
+                if early_stopping(hr_list, 20):
                     break
 
             # if (epoch % args.evaluate_every) == 0:

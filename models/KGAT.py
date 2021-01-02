@@ -142,9 +142,9 @@ class KGAT(nn.Module):
         self.n_relations = n_relations
 
         self.entity_dim = 64
-        self.relation_dim = 64
+        self.relation_dim = 32
 
-        self.aggregation_type = 'bi-interaction'
+        self.aggregation_type = 'gcn'
         self.conv_dim_list = [64, 64, 32, 16]
         self.mess_dropout = [0.1, 0.1, 0.1]
         self.n_layers = 3
