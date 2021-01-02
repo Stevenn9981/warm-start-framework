@@ -73,8 +73,8 @@ class KGATRecommender(RecommenderBase):
         self.n_items = split.n_movies
         self.n_entities = split.n_movies + split.n_descriptive_entities
         self.n_users_entities = split.n_users + split.n_movies + split.n_descriptive_entities
-        self.cf_batch_size = 256
-        self.kg_batch_size = 1024
+        self.cf_batch_size = 64
+        self.kg_batch_size = 512
         self.if_train = True
         self.optimal_params = None
 
@@ -104,7 +104,7 @@ class KGATRecommender(RecommenderBase):
 
         logger.info(model)
 
-        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        optimizer = optim.Adam(model.parameters(), lr=0.0005)
         train_graph = self.train_graph
         if not self.if_train:
             test_graph = self.test_graph
@@ -138,7 +138,7 @@ class KGATRecommender(RecommenderBase):
 
             for iter in range(1, n_cf_batch + 1):
                 time2 = time()
-                cf_batch_user, cf_batch_pos_item, cf_batch_neg_item = self.generate_cf_batch(self.train_user_dict)
+                cf_batch_user, cf_batch_pos_item, cf_batch_neg_item = self.generate_cf_batch(self.train_user_dict, self.train_user_neg_dict)
                 if use_cuda:
                     cf_batch_user = cf_batch_user.to(device)
                     cf_batch_pos_item = cf_batch_pos_item.to(device)
@@ -282,6 +282,7 @@ class KGATRecommender(RecommenderBase):
             self.train_kg_dict = collections.defaultdict(list)
             self.train_relation_dict = collections.defaultdict(list)
             self.train_user_dict = dict()
+            self.train_user_neg_dict = dict()
             heads = [tri[0] for tri in kg_triples]
             rels = [tri[1] for tri in kg_triples]
             tails = [tri[2] for tri in kg_triples]
@@ -292,6 +293,7 @@ class KGATRecommender(RecommenderBase):
             for uid, ratings in user_ratings:
                 h = uid + self.n_entities
                 itemids = set()
+                neg_itemids = set()
                 for rating in ratings:
                     r = rating.rating
                     t = rating.e_idx
@@ -300,8 +302,12 @@ class KGATRecommender(RecommenderBase):
                     tails.append(t)
                     if r == 1:
                         itemids.add(t)
+                    if r == 0:
+                        neg_itemids.add(t)
                 if len(itemids) > 0:
                     self.train_user_dict[h] = list(itemids)
+                if len(neg_itemids) > 0:
+                    self.train_user_neg_dict[h] = list(neg_itemids)
 
             self.train_graph = dgl.graph((heads, tails), num_nodes=self.n_users_entities)
             self.train_graph.ndata['id'] = torch.arange(self.n_users_entities, dtype=torch.long)
@@ -356,20 +362,23 @@ class KGATRecommender(RecommenderBase):
                 sample_pos_items.append(pos_item_id)
         return sample_pos_items
 
-    def sample_neg_items_for_u(self, user_dict, user_id, n_sample_neg_items):
+    def sample_neg_items_for_u(self, user_dict, neg_dict, user_id, n_sample_neg_items):
         pos_items = user_dict[user_id]
+        neg_items = neg_dict[user_id] if user_id in neg_dict else [i for i in range(self.n_entities)]
+        n_neg_items = len(neg_items)
 
         sample_neg_items = []
         while True:
             if len(sample_neg_items) == n_sample_neg_items:
                 break
 
-            neg_item_id = np.random.randint(low=0, high=self.n_items, size=1)[0]
+            neg_item_idx = np.random.randint(low=0, high=n_neg_items, size=1)[0]
+            neg_item_id = neg_items[neg_item_idx]
             if neg_item_id not in pos_items and neg_item_id not in sample_neg_items:
                 sample_neg_items.append(neg_item_id)
         return sample_neg_items
 
-    def generate_cf_batch(self, user_dict):
+    def generate_cf_batch(self, user_dict, neg_dict):
         exist_users = list(user_dict.keys())
         if self.cf_batch_size <= len(exist_users):
             batch_user = random.sample(exist_users, self.cf_batch_size)
@@ -379,7 +388,7 @@ class KGATRecommender(RecommenderBase):
         batch_pos_item, batch_neg_item = [], []
         for u in batch_user:
             batch_pos_item += self.sample_pos_items_for_u(user_dict, u, 1)
-            batch_neg_item += self.sample_neg_items_for_u(user_dict, u, 1)
+            batch_neg_item += self.sample_neg_items_for_u(user_dict, neg_dict, u, 1)
 
         batch_user = torch.LongTensor(batch_user)
         batch_pos_item = torch.LongTensor(batch_pos_item)
