@@ -305,7 +305,7 @@ class KGTransHRecommender(RecommenderBase):
         super(KGTransHRecommender, self).__init__()
 
         self.n_entities = split.n_users + split.n_movies + split.n_descriptive_entities
-        self.n_relations = 3 + 7 + 7  # Like, dislike, unknown + reverse
+        self.n_relations = 3 + 8 + 8  # Like, dislike, unknown + reverse
 
         self.with_kg_triples = True
         self.with_standard_corruption = True
@@ -320,7 +320,7 @@ class KGTransHRecommender(RecommenderBase):
         self.best_model = None
 
         if self.optimal_params is None:
-            for n_latent_factors in [50]:
+            for n_latent_factors in [50, 100, 250]:
                 logger.debug(f'Fitting TransH-KG with {n_latent_factors} latent factors')
                 self.model = TransH(self.n_entities, self.n_relations, self.margin, n_latent_factors)
                 self._fit(training, validation)
@@ -408,7 +408,7 @@ class KGTransHRecommender(RecommenderBase):
                 optimizer.zero_grad()
 
                 # Normalise hyperplanes
-                self.model.normalize_hyperplanes(p_r)
+                self.model.normalize_hyperplanes()
 
         # Return the latest average Hit@k, use for grid search
         self.model = self.best_model

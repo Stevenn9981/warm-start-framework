@@ -70,6 +70,7 @@ class PageRankRecommender(RecommenderBase):
         return indices
 
     def predict(self, user, items):
+        self.optimal_params['importance'] = {int(k): v for k, v in self.optimal_params['importance'].items()}
         return self._scores(self.optimal_params['alpha'],
                             self.get_node_weights(user, self.optimal_params['importance']), items)
 
@@ -126,7 +127,7 @@ class PageRankRecommender(RecommenderBase):
             parameters = {
                 'alpha': [0.85],
                 'importance': [
-                    {1: 1, 0: 0, -1: 0},
+                    # {1: 1, 0: 0, -1: 0},
                     {1: 0.5, 0: 0, -1: 0.5},
                     {1: 0.9, 0: 0.1, -1: 0.0},
                     {1: 0.0, 0: 0.1, -1: 0.9},
@@ -135,12 +136,12 @@ class PageRankRecommender(RecommenderBase):
             }
 
             combinations = get_combinations(parameters)
-            logger.debug(f'{len(combinations)} hyperparameter combinations')
+            logger.info(f'{len(combinations)} hyperparameter combinations')
 
             results = list()
 
             for combination in combinations:
-                logger.debug(f'Trying {combination}')
+                logger.info(f'Trying {combination}')
 
                 hits = 0
                 count = 0

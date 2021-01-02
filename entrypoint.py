@@ -12,6 +12,7 @@ from experiments.experiment import Dataset
 from experiments.metrics import ndcg_at_k
 from models.bpr_recommender import BPRRecommender
 from models.item_knn_recommender import ItemKNNRecommender
+from models.kgat_recommender import KGATRecommender
 from models.melu_recommender import MeLURecommender
 from models.pagerank.collaborative_pagerank_recommender import CollaborativePageRankRecommender
 from models.pagerank.joint_pagerank_recommender import JointPageRankRecommender
@@ -95,6 +96,10 @@ models = {
     },
     'cbf-item-knn': {
         'class': CbfItemKnnRecommender,
+        'split': True
+    },
+    'kgat': {
+        'class': KGATRecommender,
         'split': True
     }
 }
