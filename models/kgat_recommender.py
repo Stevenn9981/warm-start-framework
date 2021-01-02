@@ -50,6 +50,16 @@ def load_kg_triples(split):
     return indexed_triples, r_idx_map
 
 
+def early_stopping(hit_list, stopping_steps):
+    best_hit = max(hit_list)
+    best_step = hit_list.index(best_hit)
+    if len(hit_list) - best_step - 1 >= stopping_steps:
+        should_stop = True
+    else:
+        should_stop = False
+    return should_stop
+
+
 class KGATRecommender(RecommenderBase):
     def __init__(self, split):
         super(KGATRecommender, self).__init__()
@@ -108,10 +118,7 @@ class KGATRecommender(RecommenderBase):
 
         # initialize metrics
         best_epoch = -1
-        epoch_list = []
-        precision_list = []
-        recall_list = []
-        ndcg_list = []
+        hr_list = []
 
         # train model
         for epoch in range(1, max_iterations + 1):
@@ -192,16 +199,18 @@ class KGATRecommender(RecommenderBase):
             hits = 0
             count = 0
 
-            model.eval()
-            for user, validation_tuple in validation:
-                count += 1
-                dict = self.predict(user, [validation_tuple[0]] + validation_tuple[1])
-                scores = sorted(dict.items(), key=lambda x: x[1], reverse=True)[:10]
-                if validation_tuple[0] in [item[0] for item in scores]:
-                    hits += 1
-
-            logger.info(f'Hit Ratio@Epoch {epoch}: {hits / count * 100:.2f}%')
-
+            if (epoch % 5) == 0:
+                model.eval()
+                for user, validation_tuple in validation:
+                    count += 1
+                    dict = self.predict(user, [validation_tuple[0]] + validation_tuple[1])
+                    scores = sorted(dict.items(), key=lambda x: x[1], reverse=True)[:10]
+                    if validation_tuple[0] in [item[0] for item in scores]:
+                        hits += 1
+                logger.info(f'Hit Ratio@10 in Epoch {epoch}: {hits / count * 100:.2f}%')
+                hr_list.append(hits / count)
+                if early_stopping(hr_list, 5):
+                    break
             # if (epoch % args.evaluate_every) == 0:
             #     time1 = time()
             #     _, precision, recall, ndcg = evaluate(model, train_graph, data.train_user_dict, data.test_user_dict,
@@ -223,7 +232,6 @@ class KGATRecommender(RecommenderBase):
             #         save_model(model, args.save_dir, epoch, best_epoch)
             #         logger.info('Save model on epoch {:04d}!'.format(epoch))
             #         best_epoch = epoch
-
 
     def predict(self, user, items):
 
