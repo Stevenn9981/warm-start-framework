@@ -145,9 +145,9 @@ class KGAT(nn.Module):
         self.relation_dim = 64
 
         self.aggregation_type = 'bi-interaction'
-        self.conv_dim_list = [64, 32, 16]
-        self.mess_dropout = [0.1, 0.1]
-        self.n_layers = 2
+        self.conv_dim_list = [64, 64, 32, 16]
+        self.mess_dropout = [0.1, 0.1, 0.1]
+        self.n_layers = 3
 
         self.kg_l2loss_lambda = 1e-5
         self.cf_l2loss_lambda = 1e-5

@@ -150,7 +150,7 @@ class KGATRecommender(RecommenderBase):
                 optimizer.zero_grad()
                 cf_total_loss += cf_batch_loss.item()
 
-                if (iter % 1) == 0:
+                if (iter % 10) == 0:
                     logger.info(
                         'CF Training: Epoch {:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean Loss {:.4f}'.format(
                             epoch, iter, n_cf_batch, time() - time2, cf_batch_loss.item(), cf_total_loss / iter))
@@ -182,7 +182,7 @@ class KGATRecommender(RecommenderBase):
                 optimizer.zero_grad()
                 kg_total_loss += kg_batch_loss.item()
 
-                if (iter % 1) == 0:
+                if (iter % 10) == 0:
                     logger.info(
                         'KG Training: Epoch {:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean Loss {:.4f}'.format(
                             epoch, iter, n_kg_batch, time() - time2, kg_batch_loss.item(), kg_total_loss / iter))
@@ -198,21 +198,46 @@ class KGATRecommender(RecommenderBase):
             # evaluate cf
             hits = 0
             count = 0
+            model.eval()
+            # if (epoch % 2) == 0:
+            #     time1 = time()
+            #     for user, validation_tuple in random.sample(validation, min(len(validation), 50)):
+            #         count += 1
+            #         dict = self.predict(user, [validation_tuple[0]] + validation_tuple[1])
+            #         scores = sorted(dict.items(), key=lambda x: x[1], reverse=True)[:10]
+            #         if validation_tuple[0] in [item[0] for item in scores]:
+            #             hits += 1
+            #     logger.info(f'Hit Ratio@10 in Epoch {epoch}: {hits / count * 100:.2f}%')
+            #     logger.info(f'Evaluation time: {time() - time1:.2f}s')
+            #     hr_list.append(hits / count)
+            #     if early_stopping(hr_list, 5):
+            #         break
 
-            if (epoch % 2) == 0:
+            if (epoch % 1) == 0:
                 time1 = time()
-                model.eval()
-                for user, validation_tuple in random.sample(validation, min(len(validation), 200)):
+                user_ids = torch.LongTensor([user + self.n_entities for user, validation_tuple in validation])
+                item_ids = torch.arange(self.n_entities, dtype=torch.long)
+                if use_cuda:
+                    user_ids = user_ids.to(device)
+                    item_ids = item_ids.to(device)
+                cf_scores = model('predict', train_graph, user_ids, item_ids).cpu()
+                for i, (user, validation_tuple) in enumerate(validation):
                     count += 1
-                    dict = self.predict(user, [validation_tuple[0]] + validation_tuple[1])
-                    scores = sorted(dict.items(), key=lambda x: x[1], reverse=True)[:10]
+                    item_list = [validation_tuple[0]] + validation_tuple[1]
+                    item_scores = cf_scores[i][item_list]
+                    score_dict = dict()
+                    for idx in range(len(item_list)):
+                        score = item_scores[idx].item()
+                        score_dict[item_list[idx]] = score
+                    scores = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)[:10]
                     if validation_tuple[0] in [item[0] for item in scores]:
                         hits += 1
                 logger.info(f'Hit Ratio@10 in Epoch {epoch}: {hits / count * 100:.2f}%')
                 logger.info(f'Evaluation time: {time() - time1:.2f}s')
                 hr_list.append(hits / count)
-                if early_stopping(hr_list, 5):
+                if early_stopping(hr_list, 10):
                     break
+
             # if (epoch % args.evaluate_every) == 0:
             #     time1 = time()
             #     _, precision, recall, ndcg = evaluate(model, train_graph, data.train_user_dict, data.test_user_dict,
