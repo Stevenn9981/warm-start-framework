@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 import sys
 import traceback
 from collections import defaultdict

@@ -199,15 +199,17 @@ class KGATRecommender(RecommenderBase):
             hits = 0
             count = 0
 
-            if (epoch % 5) == 0:
+            if (epoch % 2) == 0:
+                time1 = time()
                 model.eval()
-                for user, validation_tuple in validation:
+                for user, validation_tuple in random.sample(validation, min(len(validation), 200)):
                     count += 1
                     dict = self.predict(user, [validation_tuple[0]] + validation_tuple[1])
                     scores = sorted(dict.items(), key=lambda x: x[1], reverse=True)[:10]
                     if validation_tuple[0] in [item[0] for item in scores]:
                         hits += 1
                 logger.info(f'Hit Ratio@10 in Epoch {epoch}: {hits / count * 100:.2f}%')
+                logger.info(f'Evaluation time: {time() - time1:.2f}s')
                 hr_list.append(hits / count)
                 if early_stopping(hr_list, 5):
                     break
